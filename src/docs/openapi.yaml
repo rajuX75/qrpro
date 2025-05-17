@@ -1,0 +1,671 @@
+openapi: 3.0.0
+info:
+  title: QR Code Generation API
+  description: |
+    A comprehensive API for creating, managing, and tracking QR codes.
+    Supports both static and dynamic QR codes with analytics.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@qrcodeapi.com
+    url: https://qrcodeapi.com/support
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.qrcodeapi.com
+    description: Production server
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Invalid Request"
+        message:
+          type: string
+          example: "The request was invalid"
+        details:
+          type: object
+          additionalProperties: true
+
+    QRCodeCustomization:
+      type: object
+      properties:
+        size:
+          type: integer
+          minimum: 100
+          maximum: 2000
+          default: 500
+          description: Size of the QR code in pixels
+        format:
+          type: string
+          enum: [png, jpeg, svg]
+          default: png
+          description: Output format of the QR code
+        foregroundColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          default: "#000000"
+          description: Foreground color in hex format
+        backgroundColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          default: "#FFFFFF"
+          description: Background color in hex format
+        logoUrl:
+          type: string
+          format: uri
+          description: URL of the logo to embed in the QR code
+        logoScale:
+          type: number
+          minimum: 0.1
+          maximum: 0.5
+          default: 0.2
+          description: Scale of the logo relative to QR code size
+        logoMargin:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 2
+          description: Margin around the logo in pixels
+        logoBackgroundColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          default: "#FFFFFF"
+          description: Background color behind the logo
+        quietZone:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 4
+          description: Size of the quiet zone around the QR code
+        errorCorrectionLevel:
+          type: string
+          enum: [L, M, Q, H]
+          default: M
+          description: Error correction level (L=7%, M=15%, Q=25%, H=30%)
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "123e4567-e89b-12d3-a456-426614174000"
+            key:
+              type: string
+              example: "qrcode_1234567890abcdef"
+            status:
+              type: string
+              enum: [active, suspended, revoked]
+              example: "active"
+            tier:
+              type: string
+              enum: [free, premium]
+              example: "free"
+            usage:
+              type: object
+              properties:
+                totalRequests:
+                  type: integer
+                  example: 0
+                lastUsed:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: null
+            rateLimits:
+              type: object
+              properties:
+                requestsPerDay:
+                  type: integer
+                  example: 1000
+                requestsPerMinute:
+                  type: integer
+                  example: 60
+            createdAt:
+              type: string
+              format: date-time
+              example: "2024-03-17T10:00:00Z"
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: null
+            documentation:
+              type: object
+              properties:
+                apiDocs:
+                  type: string
+                  format: uri
+                  example: "https://api.qrcodeapi.com/docs"
+                support:
+                  type: string
+                  format: uri
+                  example: "https://qrcodeapi.com/support"
+
+    StaticQRCodeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            filePath:
+              type: string
+              example: "/data/static/qrcode/abc123.png"
+            downloadUrl:
+              type: string
+              format: uri
+              example: "http://localhost:3000/data/static/qrcode/abc123.png"
+            metadata:
+              type: object
+              properties:
+                size:
+                  type: integer
+                  example: 500
+                format:
+                  type: string
+                  example: "png"
+                generatedHash:
+                  type: string
+                  example: "abc123"
+                timestamp:
+                  type: string
+                  format: date-time
+                  example: "2024-03-17T10:00:00Z"
+
+    DynamicQRCodeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            shortId:
+              type: string
+              example: "abc123"
+            filePath:
+              type: string
+              example: "/data/dynamic/qrcode/abc123.png"
+            downloadUrl:
+              type: string
+              format: uri
+              example: "http://localhost:3000/data/dynamic/qrcode/abc123.png"
+            targetUrl:
+              type: string
+              format: uri
+              example: "https://example.com"
+            originalDataEncoded:
+              type: string
+              example: "https://example.com"
+            metadata:
+              type: object
+              properties:
+                size:
+                  type: integer
+                  example: 500
+                format:
+                  type: string
+                  example: "png"
+                foregroundColor:
+                  type: string
+                  example: "#000000"
+                backgroundColor:
+                  type: string
+                  example: "#FFFFFF"
+                createdAt:
+                  type: string
+                  format: date-time
+                  example: "2024-03-17T10:00:00Z"
+                updatedAt:
+                  type: string
+                  format: date-time
+                  example: "2024-03-17T10:00:00Z"
+            analytics:
+              type: object
+              properties:
+                totalScans:
+                  type: integer
+                  example: 0
+                lastScanned:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: null
+                createdAt:
+                  type: string
+                  format: date-time
+                  example: "2024-03-17T10:00:00Z"
+                updatedAt:
+                  type: string
+                  format: date-time
+                  example: "2024-03-17T10:00:00Z"
+
+    BulkQRCodeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              shortId:
+                type: string
+                example: "abc123"
+              filePath:
+                type: string
+                example: "/data/dynamic/qrcode/abc123.png"
+              downloadUrl:
+                type: string
+                format: uri
+                example: "http://localhost:3000/data/dynamic/qrcode/abc123.png"
+              targetUrl:
+                type: string
+                format: uri
+                example: "https://example.com"
+              metadata:
+                type: object
+                properties:
+                  size:
+                    type: integer
+                    example: 500
+                  format:
+                    type: string
+                    example: "png"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2024-03-17T10:00:00Z"
+
+paths:
+  /api/v1/apikey:
+    post:
+      summary: Generate a new API key
+      description: |
+        Generates a new API key for accessing the QR Code Generation API.
+        The API key is required for all other API endpoints.
+      tags:
+        - API Key
+      responses:
+        '200':
+          description: API key generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/generate:
+    post:
+      summary: Generate a static QR code
+      description: |
+        Generates a static QR code with the provided data and customization options.
+        Static QR codes cannot be updated after generation.
+      tags:
+        - QR Codes
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: string
+                  description: The data to encode in the QR code
+                  example: "https://example.com"
+                customization:
+                  $ref: '#/components/schemas/QRCodeCustomization'
+      responses:
+        '200':
+          description: QR code generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticQRCodeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/dynamic/create:
+    post:
+      summary: Create a dynamic QR code
+      description: |
+        Creates a dynamic QR code that can be updated later.
+        Dynamic QR codes support analytics and can be modified without generating a new code.
+      tags:
+        - QR Codes
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - targetUrl
+              properties:
+                targetUrl:
+                  type: string
+                  format: uri
+                  description: The target URL for the QR code
+                  example: "https://example.com"
+                customization:
+                  $ref: '#/components/schemas/QRCodeCustomization'
+      responses:
+        '200':
+          description: Dynamic QR code created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DynamicQRCodeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/dynamic/{shortId}/update:
+    put:
+      summary: Update a dynamic QR code
+      description: |
+        Updates the target URL and/or customization options of an existing dynamic QR code.
+        The QR code image will be regenerated with the new settings.
+      tags:
+        - QR Codes
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The short ID of the dynamic QR code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetUrl:
+                  type: string
+                  format: uri
+                  description: The new target URL for the QR code
+                  example: "https://example.com/new"
+                customization:
+                  $ref: '#/components/schemas/QRCodeCustomization'
+      responses:
+        '200':
+          description: Dynamic QR code updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DynamicQRCodeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dynamic QR code not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/dynamic/{shortId}/analytics:
+    get:
+      summary: Get QR code analytics
+      description: |
+        Retrieves analytics data for a dynamic QR code, including scan statistics and timestamps.
+      tags:
+        - Analytics
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The short ID of the dynamic QR code
+      responses:
+        '200':
+          description: Analytics data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalScans:
+                        type: integer
+                        example: 42
+                      lastScanned:
+                        type: string
+                        format: date-time
+                        example: "2024-03-17T10:00:00Z"
+                      createdAt:
+                        type: string
+                        format: date-time
+                        example: "2024-03-17T10:00:00Z"
+                      updatedAt:
+                        type: string
+                        format: date-time
+                        example: "2024-03-17T10:00:00Z"
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dynamic QR code not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/bulk/generate:
+    post:
+      summary: Generate multiple QR codes
+      description: |
+        Generates multiple QR codes in a single request.
+        Supports both static and dynamic QR codes.
+      tags:
+        - QR Codes
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: string
+                        description: The data to encode in the QR code
+                        example: "https://example.com"
+                      isDynamic:
+                        type: boolean
+                        description: Whether to create a dynamic QR code
+                        default: false
+                      customization:
+                        $ref: '#/components/schemas/QRCodeCustomization'
+      responses:
+        '200':
+          description: QR codes generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkQRCodeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/qr/{id}:
+    get:
+      summary: Get a single QR code by ID
+      description: |
+        Retrieves information about a single QR code by its ID.
+        Supports both static and dynamic QR codes.
+      tags:
+        - QR Codes
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the QR code
+      responses:
+        '200':
+          description: QR code retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StaticQRCodeResponse'
+                  - $ref: '#/components/schemas/DynamicQRCodeResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: QR code not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

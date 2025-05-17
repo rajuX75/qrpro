@@ -1,0 +1,1 @@
+ALTER TABLE "api_keys" ALTER COLUMN "usage_count" DROP DEFAULT;
